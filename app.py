@@ -27,7 +27,6 @@ dataframe = dataframe.drop(columns=['Week End', 'Crude Vaccinated Ratio',
                                     'Age Group Min','Age Group Max'])
 
 dataframe = dataframe.drop(dataframe[dataframe['Age Group'] == 'All'].index)
-dataframe = dataframe[dataframe['Outcome'] != 'Cases']
 
 dataframe['Unvaccinated Rate'] = dataframe['Unvaccinated Rate'].str.replace(',', '').astype(float)
 dataframe['Vaccinated Rate'] = dataframe['Vaccinated Rate'].str.replace(',', '').astype(float)
@@ -70,18 +69,21 @@ with st.sidebar:
              'The Generative Artificial Intelligence portion of the project aims to allow users to query information '
              'about specific weeks and have the model respond with summarized information. ')
 
+    st.header('Application Created By ')
+    st.write('Group 2: Rachel Hussmann, Jeannine Elmasri , Sophia Milask, Anissa Serafine')
+
 with tab1:
 
     st.header('Decision Tree Classifier')
     st.write('We created a decision tree classifier from the COVID-19 dataset to create a way to predict '
                  'what class a record may fall into based on the following columns and information: Age group, '
                  'boosted rate, vaccinated rate, and unvaccinated rate. The prediction that the classifier is trying to '
-                 'complete is deciding whether the combination of those features would result in a hospitalization or a death')
+                 'complete is deciding whether the combination of those features would result in a case, hospitalization or a death.')
 
     col1, col2, col3 = st.columns(3)
-    col1.metric('Model Accuracy', '89%')
+    col1.metric('Model Accuracy', '87%')
     col2.metric('Total Records', '3,336')
-    col3.metric('Classes', '2')
+    col3.metric('Classes', '3')
 
     x = dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']]
     y = dataframe['Outcome']
@@ -113,7 +115,7 @@ with tab1:
 
     report = classification_report(ytesting_data, y_predict, output_dict=True)
     report_df = pd.DataFrame(report).transpose().round(2)
-    report_df.index = ['Deaths', 'Hospitalizations', 'Accuracy', 'Macro Avg', 'Weighted Avg']
+    report_df.index = ['Cases', 'Deaths', 'Hospitalizations', 'Accuracy', 'Macro Avg', 'Weighted Avg']
     st.dataframe(report_df, width= 'stretch', column_config={
         "_index": st.column_config.TextColumn("Class", width="medium")
     })
@@ -135,22 +137,24 @@ with tab1:
 # Rework this section (a bit buggy)
 with tab2:
     st.header('Predict Outcome')
-    st.write('Using the decision tree classifier, input the vaccination rate levels to predict '
-             'whether the profile is associated with a hospitalization or death outcome.')
+    st.write('Using the decision tree classifier, input the age group and vaccination rate levels to predict '
+             'whether the profile is associated with a case, hospitalization or death outcome.')
 
-    col1, col2, col3, col4 = st.columns(4)
+    with st.form('prediction_form'):
+        col1, col2 = st.columns(2)
 
-    with col1:
-        unvax_input = st.selectbox('Unvaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
-    with col2:
-        vax_input = st.selectbox('Vaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
-    with col3:
-        boost_input = st.selectbox('Boosted Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
-    with col4:
-        age_input = st.selectbox('Age Group', ['0-4', '5-11', '12-17', '18-29', '30-49', '50-64', '65-79', '80+'])
+        with col1:
+            age_input = st.selectbox('Age Group', ['0-4', '5-11', '12-17', '18-29', '30-49', '50-64', '65-79', '80+'])
+            unvax_input = st.selectbox('Unvaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
+        with col2:
+            vax_input = st.selectbox('Vaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
+            boost_input = st.selectbox('Boosted Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
 
-    if st.button('Predict Outcome'):
+        submitted = st.form_submit_button('Predict Outcome')
+
+    if submitted:
         label_order = ['Zero', 'Very Low', 'Low', 'Medium', 'High']
+        age_order = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
 
         input_df = pd.DataFrame([[
             label_order.index(unvax_input),
@@ -168,9 +172,8 @@ with tab3:
     st.header('Association Mining')
     st.write('For this part of the project, we created an interactive tool that allows you the user to choose what '
              'threshold values you want. We utilized the Apriori algorithm for this part of the project. Please input '
-             'the minimum values for support (prunes the infrequent itemsets in the rule generation phase), confidence '
-             '(prunes the rules themselves), and lift (prunes the finalized rules). Once you submit your choice, the '
-             'program will output what the rules it found were, any supporting values, and the plot at the bottom.')
+             'the minimum values for support, confidence, and lift. Once you submit your choice, the program will '
+             'output what the rules it found were, any supporting values, and the plot at the bottom.')
 
     col1, col2, col3 = st.columns(3)
     with col1:
