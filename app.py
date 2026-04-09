@@ -52,6 +52,8 @@ dataframe['Vaccinated Rate'] = pd.cut(dataframe['Vaccinated Rate'], bins=vaccina
 dataframe['Boosted Rate'] = pd.cut(dataframe['Boosted Rate'], bins=booster_bins, labels=booster_labels)
 
 dataframe['Outcome_Age'] = dataframe['Outcome'] + '_' + dataframe['Age Group']
+age_order = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
+dataframe['Age Group Encoded'] = dataframe['Age Group'].map(age_order)
 
 le = LabelEncoder()
 dataframe['Outcome_Age'] = le.fit_transform(dataframe['Outcome_Age'])
@@ -74,20 +76,20 @@ with tab1:
     st.write('We created a decision tree classifier from the COVID-19 dataset to create a way to predict '
                  'what class a record may fall into based on the following columns and information: Age group, '
                  'boosted rate, vaccinated rate, and unvaccinated rate. The prediction that the classifier is trying to '
-                 'complete is deciding whether the record is a hospitalization or a death.')
+                 'complete is deciding whether the combination of those features would result in a hospitalization or a death')
 
     col1, col2, col3 = st.columns(3)
-    col1.metric('Model Accuracy', '78%')
+    col1.metric('Model Accuracy', '89%')
     col2.metric('Total Records', '3,336')
     col3.metric('Classes', '2')
 
-    x = dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']]
+    x = dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']]
     y = dataframe['Outcome']
 
-    xtraining_data, xtesting_data, ytraining_data, ytesting_data = sk.train_test_split(x, y, test_size=0.4,
+    xtraining_data, xtesting_data, ytraining_data, ytesting_data = sk.train_test_split(x, y, test_size=0.2,
                                                                                        random_state=42)
 
-    decisionTree = tree.DecisionTreeClassifier(criterion='gini')
+    decisionTree = tree.DecisionTreeClassifier(criterion='entropy', class_weight='balanced')
     decisionTree = decisionTree.fit(xtraining_data, ytraining_data)
 
     feature = [col for col in x.columns]
@@ -95,7 +97,7 @@ with tab1:
     st.subheader('Visualization of the Decision Tree')
 
     st.write('Below is the structure of the classifier and how it makes decisions based on the training set we have '
-             'given it. The current makeup of the data is 60% training and 40% testing. The view that can be seen '
+             'given it. The current makeup of the data is 80% training and 20% testing. The view that can be seen '
              'is halted at three levels, but the maximum depth of the tree is unlimited.')
 
     decisionTreePlt, ax1 = plt.subplots(figsize=(80, 20), dpi=150)
@@ -136,7 +138,7 @@ with tab2:
     st.write('Using the decision tree classifier, input the vaccination rate levels to predict '
              'whether the profile is associated with a hospitalization or death outcome.')
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         unvax_input = st.selectbox('Unvaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
@@ -144,6 +146,8 @@ with tab2:
         vax_input = st.selectbox('Vaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
     with col3:
         boost_input = st.selectbox('Boosted Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
+    with col4:
+        age_input = st.selectbox('Age Group', ['0-4', '5-11', '12-17', '18-29', '30-49', '50-64', '65-79', '80+'])
 
     if st.button('Predict Outcome'):
         label_order = ['Zero', 'Very Low', 'Low', 'Medium', 'High']
@@ -151,8 +155,9 @@ with tab2:
         input_df = pd.DataFrame([[
             label_order.index(unvax_input),
             label_order.index(vax_input),
-            label_order.index(boost_input)
-        ]], columns=['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate'])
+            label_order.index(boost_input),
+            age_order[age_input]
+        ]], columns=['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded'])
 
         prediction = decisionTree.predict(input_df)
         st.success(f'Predicted Outcome: {prediction[0]}')
@@ -204,7 +209,7 @@ with tab3:
         col3.metric('Avg Lift', f"{filtered_rules['lift'].mean():.2f}")
 
         st.dataframe(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']],
-                     use_container_width=True)
+                     width='stretch')
 
         fig, ax = plt.subplots(figsize=(10, 6))
         scatter = ax.scatter(filtered_rules['support'], filtered_rules['confidence'],
