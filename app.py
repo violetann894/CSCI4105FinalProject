@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
 
-st.title('Analyzing COVID-19 Dataset from Chicago')
+st.title('COVID-19 Data Trends Visualizer')
 tab1, tab2, tab3 = st.tabs(['Decision Tree Model Information', 'Model Prediction', 'Association Mining Results'])
 
 pd.set_option('display.max_columns', None)
