@@ -4,7 +4,7 @@ import pandas as pd
 from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
 from sklearn.impute import SimpleImputer
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix
 import sklearn.tree as tree
 import sklearn.model_selection as sk
 import matplotlib.pyplot as plt
