@@ -10,9 +10,13 @@ import sklearn.model_selection as sk
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+
 
 st.title('COVID-19 Data Trends Visualizer')
-tab1, tab2, tab3 = st.tabs(['Decision Tree Model Information', 'Model Prediction', 'Association Mining Results'])
+tab1, tab2, tab3, tab4 = st.tabs(['Decision Tree Model Information', 'Model Prediction', 'Association Mining Results',
+                                  'Cluster Analysis'])
 
 pd.set_option('display.max_columns', None)
 
@@ -66,8 +70,8 @@ with st.sidebar:
              'from the city of Chicago and outputs information regarding anomalies and the associations between '
              'different variables. Using association data mining and a decision tree classifier, we aim to visualize '
              'the relationships between the different variables and the possible historical reasons for said trends. '
-             'The Generative Artificial Intelligence portion of the project aims to allow users to query information '
-             'about specific weeks and have the model respond with summarized information. ')
+             'The Generative Artificial Intelligence portion of the project aims to allow users to query the AI with '
+             'questions regarding the graphs created by the different techniques.')
 
     st.header('Application Created By ')
     st.write('Group 2: Rachel Hussmann, Jeannine Elmasri , Sophia Milask, Anissa Serafine')
@@ -223,3 +227,57 @@ with tab3:
         ax.set_title('Association Rules: Support vs Confidence (colored by Lift)')
         st.pyplot(fig)
         plt.close(fig)
+
+with tab4:
+
+    st.header('K-Means Clustering')
+    st.write('Clustering helps us understand the natural relationships between data points. In this project, we used '
+             'the k-means method of clustering. Before we were able to create the clusters, the number of clusters had '
+             'to be discovered. To figure this out, we used the elbow method to find the best number of clusters to '
+             'used based on the dataset. The graph below displays the results of applying the elbow method.')
+
+    labels = ['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']
+    x = dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']]
+    scaler = StandardScaler()
+    scaled_x = scaler.fit_transform(x)
+
+    wcss = []
+    for i in range(1, 6):
+        k_mean_clusters = KMeans(n_clusters=i)
+        k_mean_clusters.fit(scaled_x)
+        wcss.append(k_mean_clusters.inertia_)
+
+    fig, ax = plt.subplots(figsize=(10,6))
+    plt.plot(range(1,6), wcss)
+    ax.set_xlabel('Number of Clusters')
+    ax.set_ylabel('WCSS')
+    st.pyplot(fig)
+    plt.close(fig)
+
+    st.write('In this graph, it shows that the best number of clusters to use is three, as any additional clusters '
+             'would only provide a minimal increase in information.')
+
+    k = 3
+    clusters = KMeans(n_clusters=k, random_state=42)
+    clusters.fit_predict(scaled_x)
+    centroids = clusters.cluster_centers_
+
+    st.subheader('Cluster Profiles')
+    st.write('The table below shows data from the centroids of each cluster:')
+    st.table(pd.DataFrame(centroids, columns=labels, index=['Cluster 1', 'Cluster 2', 'Cluster 3']))
+
+    st.write('Each of these clusters tell us something about the dataset. The first cluster represented the younger '
+             'population, as defined by their average age group. Based on the data from the rates of vaccination, this '
+             'group appeared to not follow through with the complete vaccination series. While their rates of unvaccination '
+             'and vaccination were high, their boosted status was the lowest of the three clusters, informating us that '
+             'they were a diversified age group that either: 1. did not get the vaccine at all or 2. received the first '
+             'part of the vaccine but not the booster. The second cluster is based on our middle age group. The rates '
+             'of vaccination for this group was a bit all over the place, which makes it a bit difficult to interpret '
+             'specific behaviors for this group. However, comparing their rates to the other clusters, in can be '
+             'inferred that this group was very polarized on the topic of vaccination. This cluster represents the '
+             'working age citizen that most likely faced challenges regarding vaccination status. Based on information '
+             'from the pandemic, this was most likely the group that faced vaccination requirements in the face of '
+             'uncertainty with regard to the vaccine. This cluster perfectly represents that age group and the '
+             'diversity in opinions that occurred during that timeframe. The last cluster represents the elderly '
+             'community. Comparing their rates of vaccination to the other groups, they had the highest rate of '
+             'vaccination, meaning that they were the age group that were the most protected during the pandemic.')
