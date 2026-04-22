@@ -13,15 +13,16 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 
-
+# Creates the title for the application
 st.title('COVID-19 Data Trends Visualizer')
+
+# Creates the various tabs needed to show all the tools used for the project
 tab1, tab2, tab3, tab4 = st.tabs(['Decision Tree Model Information', 'Model Prediction', 'Association Mining Results',
                                   'Cluster Analysis'])
-
-pd.set_option('display.max_columns', None)
-
+# Imports the COVID 19 data from the .csv file
 dataframe = pd.read_csv('COVID-19_Outcomes_by_Vaccination_Status_-_Historical_20260312.csv')
 
+# Drops the columns that are not needed for analysis
 dataframe = dataframe.drop(columns=['Week End', 'Crude Vaccinated Ratio',
                                     'Crude Boosted Ratio','Age-Adjusted Unvaccinated Rate',
                                     'Age-Adjusted Vaccinated Rate','Age-Adjusted Boosted Rate',
@@ -30,17 +31,33 @@ dataframe = dataframe.drop(columns=['Week End', 'Crude Vaccinated Ratio',
                                     'Outcome Unvaccinated','Outcome Vaccinated','Outcome Boosted',
                                     'Age Group Min','Age Group Max'])
 
+# All age group is difficult to factor into to the other more concrete age groups, so we elected to remove those rows
 dataframe = dataframe.drop(dataframe[dataframe['Age Group'] == 'All'].index)
 
-dataframe['Unvaccinated Rate'] = dataframe['Unvaccinated Rate'].str.replace(',', '').astype(float)
-dataframe['Vaccinated Rate'] = dataframe['Vaccinated Rate'].str.replace(',', '').astype(float)
-dataframe['Boosted Rate'] = dataframe['Boosted Rate'].str.replace(',', '').astype(float)
+# Some of the numbers in the different rates have commas (e.g. 2,300.00), which cannot be read
+# Removes the comma from rates that have them and replaces the original value
+dataframe['Unvaccinated Rate'] = dataframe['Unvaccinated Rate'].str.replace(',', '')
+dataframe['Vaccinated Rate'] = dataframe['Vaccinated Rate'].str.replace(',', '')
+dataframe['Boosted Rate'] = dataframe['Boosted Rate'].str.replace(',', '')
 
+# Some values are missing, which would negatively affect the data
+# Uses SimpleImputer to replace missing values with the median of the various vaccination rates we will be looking at
 imputer = SimpleImputer(missing_values=np.nan, strategy='median')
 imputer.fit(dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']])
 dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']] = (
     imputer.transform(dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']]))
 
+# Used AI to assist with picking age ranges that would best fit the data
+age_dictionary = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
+
+reversed_age_dictionary = {}
+for key, value in age_dictionary.items():
+    reversed_age_dictionary[value] = key
+
+dataframe['Age Group Encoded'] = dataframe['Age Group'].map(age_dictionary)
+dataframe['Age Group Unencoded'] = dataframe['Age Group Encoded'].map(reversed_age_dictionary)
+
+# Used AI to assist with picking bins that would best fit these features
 unvaccinated_bins = [-1, 0, 5, 30, 150, np.inf]
 unvaccinated_labels = ['Zero', 'Very Low', 'Low', 'Medium', 'High']
 
@@ -54,21 +71,9 @@ dataframe['Unvaccinated Rate'] = pd.cut(dataframe['Unvaccinated Rate'], bins=unv
 dataframe['Vaccinated Rate'] = pd.cut(dataframe['Vaccinated Rate'], bins=vaccinated_bins, labels=vaccinated_labels)
 dataframe['Boosted Rate'] = pd.cut(dataframe['Boosted Rate'], bins=booster_bins, labels=booster_labels)
 
-dataframe['Outcome_Age'] = dataframe['Outcome'] + '_' + dataframe['Age Group']
-age_encode = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
-
-reversed_age_encode = {}
-for key, value in age_encode.items():
-    reversed_age_encode[value] = key
-
-dataframe['Age Group Encoded'] = dataframe['Age Group'].map(age_encode)
-dataframe['Age Group Unencoded']=dataframe['Age Group Encoded'].map(reversed_age_encode)
-
 le = LabelEncoder()
-dataframe['Outcome_Age'] = le.fit_transform(dataframe['Outcome_Age'])
-
-for col in ['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']:
-    dataframe[col] = le.fit_transform(dataframe[col].astype(str))
+for column in ['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']:
+    dataframe[column] = le.fit_transform(dataframe[column])
 
 with st.sidebar:
     st.header('About')
@@ -90,21 +95,22 @@ with tab1:
                  'boosted rate, vaccinated rate, and unvaccinated rate. The prediction that the classifier is trying to '
                  'complete is deciding whether the combination of those features would result in a case, hospitalization or a death.')
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric('Model Accuracy', '87%')
-    col2.metric('Total Records', '3,336')
-    col3.metric('Classes', '3')
+    column_one, column_two, column_three = st.columns(3)
+    column_one.metric('Model Accuracy', '87%')
+    column_two.metric('Total Records', dataframe.shape[0])
+    column_three.metric('Classes', 3)
 
     x = dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']]
     y = dataframe['Outcome']
 
-    xtraining_data, xtesting_data, ytraining_data, ytesting_data = sk.train_test_split(x, y, test_size=0.2,
-                                                                                       random_state=42)
+    xtraining_data, xtesting_data, ytraining_data, ytesting_data = sk.train_test_split(x, y, test_size=0.2, random_state=42)
 
     decisionTree = tree.DecisionTreeClassifier(criterion='entropy', class_weight='balanced')
     decisionTree = decisionTree.fit(xtraining_data, ytraining_data)
 
-    feature = [col for col in x.columns]
+    feature = []
+    for column in x.columns:
+        feature.append(column)
 
     st.subheader('Visualization of the Decision Tree')
 
@@ -124,11 +130,10 @@ with tab1:
              'classifier. These metrics include precision, recall, f1-score, support and overall accuracy')
 
     report = classification_report(ytesting_data, y_predict, output_dict=True)
-    report_df = pd.DataFrame(report).transpose().round(2)
-    report_df.index = ['Cases', 'Deaths', 'Hospitalizations', 'Accuracy', 'Macro Avg', 'Weighted Avg']
-    st.dataframe(report_df, width= 'stretch', column_config={
-        "_index": st.column_config.TextColumn("Class", width="medium")
-    })
+    report_dataframe = pd.DataFrame(report).transpose()
+    report_dataframe.index = ['Cases', 'Deaths', 'Hospitalizations', 'Accuracy', 'Macro Avg', 'Weighted Avg']
+
+    st.dataframe(report_dataframe, width='stretch')
 
     confusion = confusion_matrix(ytesting_data, y_predict)
 
@@ -144,40 +149,32 @@ with tab1:
     st.pyplot(cm)
     plt.close(cm)
 
-# Rework this section (a bit buggy)
 with tab2:
-    st.header('Predict Outcome')
-    st.write('Using the decision tree classifier, input the age group and vaccination rate levels to predict '
-             'whether the profile is associated with a case, hospitalization or death outcome.')
+    st.header('Decision Tree Prediction')
+    st.write('Using our decision tree from the previous tab, we created an interactive format for users to see what '
+             'different values for each of the features affect the prediction of the decision tree. Using the dropdowns '
+             'below, choose the various values for each feature. When complete, click continue and the decision tree '
+             'will show its prediction.')
 
-    with st.form('prediction_form'):
-        col1, col2 = st.columns(2)
+    with st.form('Prediction Form'):
+        column_one, column_two, column_three, column_four = st.columns(4)
+        with column_one:
+            unvaccinated_choice = st.selectbox('Unvaccinated Rate', unvaccinated_labels, placeholder='Zero')
+        with column_two:
+            vaccinated_choice = st.selectbox('Vaccinated Rate', vaccinated_labels, placeholder='Zero')
+        with column_three:
+            boosted_choice = st.selectbox('Boosted Rate', booster_labels, placeholder='Zero')
+        with column_four:
+            age_group_choice = st.selectbox('Age Group', age_dictionary.keys(), placeholder='0-4')
+        submit = st.form_submit_button('Predict')
 
-        with col1:
-            age_input = st.selectbox('Age Group', ['0-4', '5-11', '12-17', '18-29', '30-49', '50-64', '65-79', '80+'])
-            unvax_input = st.selectbox('Unvaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
-        with col2:
-            vax_input = st.selectbox('Vaccinated Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
-            boost_input = st.selectbox('Boosted Rate', ['Zero', 'Very Low', 'Low', 'Medium', 'High'])
+    if submit:
+        st.subheader('Model Prediction')
+        st.write('Decision Tree Prediction: ', decisionTree.predict([[unvaccinated_labels.index(unvaccinated_choice),
+                                                                     vaccinated_labels.index(vaccinated_choice),
+                                                                     booster_labels.index(boosted_choice),
+                                                                     age_dictionary[age_group_choice]]]))
 
-        submitted = st.form_submit_button('Predict Outcome')
-
-    if submitted:
-        label_order = ['Zero', 'Very Low', 'Low', 'Medium', 'High']
-        age_order = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
-
-        input_df = pd.DataFrame([[
-            label_order.index(unvax_input),
-            label_order.index(vax_input),
-            label_order.index(boost_input),
-            age_order[age_input]
-        ]], columns=['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded'])
-
-        prediction = decisionTree.predict(input_df)
-        st.success(f'Predicted Outcome: {prediction[0]}')
-
-
-# Refactor (also buggy)
 with tab3:
     st.header('Association Mining')
     st.write('For this part of the project, we created an interactive tool that allows you the user to choose what '
@@ -185,6 +182,7 @@ with tab3:
              'the minimum values for support, confidence, and lift. Once you submit your choice, the program will '
              'output what the rules it found were, any supporting values, and the plot at the bottom.')
 
+    # Refactor (also buggy)
     col1, col2, col3 = st.columns(3)
     with col1:
         min_support = st.slider('Minimum Support', 0.01, 1.0, 0.20)
@@ -193,8 +191,9 @@ with tab3:
     with col3:
         min_lift = st.slider('Minimum Lift', 0.0, 10.0, 1.0)
 
+    # Refactor (also buggy)
     if st.button('Mine Association Rules'):
-        transactionsForAlgo = []
+        transactions = []
         for _, row in dataframe.iterrows():
             transaction = [
                 f'Outcome_{row["Outcome"]}',
@@ -203,39 +202,45 @@ with tab3:
                 f'Boosted_Rate_{row["Boosted Rate"]}',
                 f'Vaccinated_Rate_{row["Vaccinated Rate"]}'
             ]
-            transactionsForAlgo.append(transaction)
+            transactions.append(transaction)
+
 
         te = TransactionEncoder()
-        te_array = te.fit(transactionsForAlgo).transform(transactionsForAlgo)
+        te_array = te.fit(transactions).transform(transactions)
         dataframe_encoded = pd.DataFrame(te_array, columns=te.columns_)
 
         frequent_itemsets = apriori(dataframe_encoded, min_support=min_support, use_colnames=True)
         rules = association_rules(frequent_itemsets, metric='confidence', min_threshold=min_confidence)
 
+        # Refactor (also buggy)
         filtered_rules = rules[rules['lift'] >= min_lift].copy()
         filtered_rules['antecedents'] = filtered_rules['antecedents'].apply(lambda x: ', '.join(list(x)))
         filtered_rules['consequents'] = filtered_rules['consequents'].apply(lambda x: ', '.join(list(x)))
 
+        # Refactor (also buggy)
         col1, col2, col3 = st.columns(3)
         col1.metric('Total Rules Found', len(filtered_rules))
         col2.metric('Avg Confidence', f"{filtered_rules['confidence'].mean():.2f}")
         col3.metric('Avg Lift', f"{filtered_rules['lift'].mean():.2f}")
 
+        # Refactor (also buggy)
         st.dataframe(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']],
                      width='stretch')
 
         fig, ax = plt.subplots(figsize=(10, 6))
+
+        # Refactor (also buggy)
         scatter = ax.scatter(filtered_rules['support'], filtered_rules['confidence'],
                              c=filtered_rules['lift'], cmap='RdYlGn', alpha=0.7, s=50)
         plt.colorbar(scatter, ax=ax, label='Lift')
-        ax.set_xlabel('Support')
-        ax.set_ylabel('Confidence')
-        ax.set_title('Association Rules: Support vs Confidence (colored by Lift)')
+
+        plt.xlabel('Support')
+        plt.ylabel('Confidence')
+        plt.title('Association Rules: Support vs Confidence (colored by Lift)')
         st.pyplot(fig)
         plt.close(fig)
 
 with tab4:
-
     st.header('K-Means Clustering')
     st.write('Clustering helps us understand the natural relationships between data points. In this project, we used '
              'the k-means method of clustering to answer two separate questions: Which age group had the highest '
@@ -254,21 +259,21 @@ with tab4:
     scaler_x2 = StandardScaler()
     scaled_x2 = scaler_x2.fit_transform(x2)
 
-    wcss_x1 = []
+    sse_x1 = []
     for i in range(1, 9):
         k_mean_clusters = KMeans(n_clusters=i)
         k_mean_clusters.fit(scaled_x1)
-        wcss_x1.append(k_mean_clusters.inertia_)
+        sse_x1.append(k_mean_clusters.inertia_)
 
-    wcss_x2 =[]
+    sse_x2 =[]
     for i in range(1, 9):
         k_mean_clusters = KMeans(n_clusters=i)
         k_mean_clusters.fit(scaled_x2)
-        wcss_x2.append(k_mean_clusters.inertia_)
+        sse_x2.append(k_mean_clusters.inertia_)
 
     st.subheader('Elbow Method for Vaccination Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10,6))
-    plt.plot(range(1,9), wcss_x1)
+    plt.plot(range(1,9), sse_x1)
     ax.set_xlabel('Number of Clusters')
     ax.set_ylabel('WCSS')
     st.pyplot(fig)
@@ -279,7 +284,7 @@ with tab4:
 
     st.subheader('Elbow Method for Boosted Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10, 6))
-    plt.plot(range(1, 9), wcss_x2)
+    plt.plot(range(1, 9), sse_x2)
     ax.set_xlabel('Number of Clusters')
     ax.set_ylabel('WCSS')
     st.pyplot(fig)
