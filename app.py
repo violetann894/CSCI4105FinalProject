@@ -55,8 +55,14 @@ dataframe['Vaccinated Rate'] = pd.cut(dataframe['Vaccinated Rate'], bins=vaccina
 dataframe['Boosted Rate'] = pd.cut(dataframe['Boosted Rate'], bins=booster_bins, labels=booster_labels)
 
 dataframe['Outcome_Age'] = dataframe['Outcome'] + '_' + dataframe['Age Group']
-age_order = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
-dataframe['Age Group Encoded'] = dataframe['Age Group'].map(age_order)
+age_encode = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
+
+reversed_age_encode = {}
+for key, value in age_encode.items():
+    reversed_age_encode[value] = key
+
+dataframe['Age Group Encoded'] = dataframe['Age Group'].map(age_encode)
+dataframe['Age Group Unencoded']=dataframe['Age Group Encoded'].map(reversed_age_encode)
 
 le = LabelEncoder()
 dataframe['Outcome_Age'] = le.fit_transform(dataframe['Outcome_Age'])
@@ -74,7 +80,7 @@ with st.sidebar:
              'questions regarding the graphs created by the different techniques.')
 
     st.header('Application Created By ')
-    st.write('Group 2: Rachel Hussmann, Jeannine Elmasri , Sophia Milask, Anissa Serafine')
+    st.write('Group 2: Rachel Hussmann, Jeannine Elmasri, Sophia Milask, Anissa Serafine')
 
 with tab1:
 
@@ -232,52 +238,91 @@ with tab4:
 
     st.header('K-Means Clustering')
     st.write('Clustering helps us understand the natural relationships between data points. In this project, we used '
-             'the k-means method of clustering. Before we were able to create the clusters, the number of clusters had '
-             'to be discovered. To figure this out, we used the elbow method to find the best number of clusters to '
-             'used based on the dataset. The graph below displays the results of applying the elbow method.')
+             'the k-means method of clustering to answer two separate questions: Which age group had the highest '
+             'vaccination rate and which age group had the highest boosted rate. Before we were able to create the '
+             'clusters, the number of clusters had to be discovered. To figure this out, we used the elbow method to '
+             'find the best number of clusters to use based on the dataset. The graphs below displays the results of '
+             'applying the elbow method.')
 
-    labels = ['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']
-    x = dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate', 'Age Group Encoded']]
-    scaler = StandardScaler()
-    scaled_x = scaler.fit_transform(x)
+    labels1 = ['Vaccinated Rate', 'Age Group Encoded']
+    x1 = dataframe[['Vaccinated Rate', 'Age Group Encoded']]
+    scaler_x1 = StandardScaler()
+    scaled_x1 = scaler_x1.fit_transform(x1)
 
-    wcss = []
-    for i in range(1, 6):
+    labels2 = ['Boosted Rate', 'Age Group Encoded']
+    x2 = dataframe[['Boosted Rate', 'Age Group Encoded']]
+    scaler_x2 = StandardScaler()
+    scaled_x2 = scaler_x2.fit_transform(x2)
+
+    wcss_x1 = []
+    for i in range(1, 9):
         k_mean_clusters = KMeans(n_clusters=i)
-        k_mean_clusters.fit(scaled_x)
-        wcss.append(k_mean_clusters.inertia_)
+        k_mean_clusters.fit(scaled_x1)
+        wcss_x1.append(k_mean_clusters.inertia_)
 
+    wcss_x2 =[]
+    for i in range(1, 9):
+        k_mean_clusters = KMeans(n_clusters=i)
+        k_mean_clusters.fit(scaled_x2)
+        wcss_x2.append(k_mean_clusters.inertia_)
+
+    st.subheader('Elbow Method for Vaccination Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10,6))
-    plt.plot(range(1,6), wcss)
+    plt.plot(range(1,9), wcss_x1)
     ax.set_xlabel('Number of Clusters')
     ax.set_ylabel('WCSS')
     st.pyplot(fig)
     plt.close(fig)
 
-    st.write('In this graph, it shows that the best number of clusters to use is three, as any additional clusters '
+    st.write('In this graph, it shows that the best number of clusters to use is four, as any additional clusters '
              'would only provide a minimal increase in information.')
 
-    k = 3
-    clusters = KMeans(n_clusters=k, random_state=42)
-    clusters.fit_predict(scaled_x)
-    centroids = clusters.cluster_centers_
+    st.subheader('Elbow Method for Boosted Rate and Age Group')
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plt.plot(range(1, 9), wcss_x2)
+    ax.set_xlabel('Number of Clusters')
+    ax.set_ylabel('WCSS')
+    st.pyplot(fig)
+    plt.close(fig)
 
-    st.subheader('Cluster Profiles')
+    st.write('In this graph, it shows that the best number of clusters to use is four, as any additional clusters '
+             'would only provide a minimal increase in information. After the k-means clusters have been created, we '
+             'want to visualize the data to see how much overlap occurs between the clusters. This will help us to '
+             'better understand how separate the clusters are and if there are any gray areas where characteristics '
+             'of two clusters may overlap.')
+
+    k = 4
+    km_x1 = KMeans(n_clusters=k, random_state=42)
+    dataframe['Clusters_x1'] = km_x1.fit_predict(scaled_x1)
+    centroids_x1 = km_x1.cluster_centers_
+
+    st.subheader('Scatterplot Cluster Graph - Vaccinated Rate and Age Group')
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(dataframe['Age Group Unencoded'], dataframe['Vaccinated Rate'], c=dataframe['Clusters_x1'])
+    ax.set_xlabel('Age Group')
+    ax.set_ylabel('Vaccinated Rate')
+    st.pyplot(fig)
+    plt.close(fig)
+
+    k = 4
+    km_x2 = KMeans(n_clusters=k, random_state=42)
+    dataframe['Clusters_x2'] = km_x2.fit_predict(scaled_x2)
+    centroids_x2 = km_x2.cluster_centers_
+
+    st.subheader('Scatterplot Cluster Graph - Boosted Rate and Age Group')
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.scatter(dataframe['Age Group Unencoded'], dataframe['Boosted Rate'], c=dataframe['Clusters_x2'])
+    ax.set_xlabel('Age Group')
+    ax.set_ylabel('Boosted Rate')
+    st.pyplot(fig)
+    plt.close(fig)
+
+    st.subheader('Cluster Profiles - Vaccination Status and Age Group')
     st.write('The table below shows data from the centroids of each cluster:')
-    st.table(pd.DataFrame(centroids, columns=labels, index=['Cluster 1', 'Cluster 2', 'Cluster 3']))
+    st.table(pd.DataFrame(centroids_x1, columns=labels1, index=['Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4']))
 
-    st.write('Each of these clusters tell us something about the dataset. The first cluster represented the younger '
-             'population, as defined by their average age group. Based on the data from the rates of vaccination, this '
-             'group appeared to not follow through with the complete vaccination series. While their rates of unvaccination '
-             'and vaccination were high, their boosted status was the lowest of the three clusters, informating us that '
-             'they were a diversified age group that either: 1. did not get the vaccine at all or 2. received the first '
-             'part of the vaccine but not the booster. The second cluster is based on our middle age group. The rates '
-             'of vaccination for this group was a bit all over the place, which makes it a bit difficult to interpret '
-             'specific behaviors for this group. However, comparing their rates to the other clusters, in can be '
-             'inferred that this group was very polarized on the topic of vaccination. This cluster represents the '
-             'working age citizen that most likely faced challenges regarding vaccination status. Based on information '
-             'from the pandemic, this was most likely the group that faced vaccination requirements in the face of '
-             'uncertainty with regard to the vaccine. This cluster perfectly represents that age group and the '
-             'diversity in opinions that occurred during that timeframe. The last cluster represents the elderly '
-             'community. Comparing their rates of vaccination to the other groups, they had the highest rate of '
-             'vaccination, meaning that they were the age group that were the most protected during the pandemic.')
+    st.subheader('Cluster Profiles - Boosted Status and Age Group')
+    st.write('The table below shows data from the centroids of each cluster:')
+    st.table(pd.DataFrame(centroids_x2, columns=labels2, index=['Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4']))
+
+    st.write('')
