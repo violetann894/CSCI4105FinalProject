@@ -264,16 +264,23 @@ with tab3:
         # Uses the association rules function to find the association rules based on confidence
         rules = association_rules(frequent_itemsets, metric='confidence', min_threshold=minimum_confidence)
 
-        # Refactor (also buggy)
+        # Gets a copy of the rules that are above the minimum_lift set by the user
         filtered_rules = rules[rules['lift'] >= minimum_lift].copy()
-        filtered_rules['antecedents'] = filtered_rules['antecedents'].apply(lambda x: ', '.join(list(x)))
-        filtered_rules['consequents'] = filtered_rules['consequents'].apply(lambda x: ', '.join(list(x)))
+
+        # Removes the 'frozenset' from the beginning of the rules
+        for x in filtered_rules.index:
+            frozen_ant = filtered_rules['antecedents'].iloc[x]
+            ant_format = ', '.join(list(frozen_ant))
+            filtered_rules['antecendents'].iloc[x] = ant_format
+            frozen_con = filtered_rules['consequents'].iloc[x]
+            con_format = ', '.join(list(frozen_con))
+            filtered_rules['consequents'].iloc[x] = con_format
 
         # Refactor (also buggy)
-        col1, col2, col3 = st.columns(3)
-        col1.metric('Total Rules Found', len(filtered_rules))
-        col2.metric('Avg Confidence', f"{filtered_rules['confidence'].mean():.2f}")
-        col3.metric('Avg Lift', f"{filtered_rules['lift'].mean():.2f}")
+        column_1, column_2, column_3 = st.columns(3)
+        column_1.metric('Total Rules Found', len(filtered_rules))
+        column_2.metric('Average Confidence', f"{filtered_rules['confidence'].mean():.2f}")
+        column_3.metric('Average Lift', f"{filtered_rules['lift'].mean():.2f}")
 
         # Refactor (also buggy)
         st.dataframe(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']],
@@ -284,6 +291,7 @@ with tab3:
         # Refactor (also buggy)
         scatter = ax.scatter(filtered_rules['support'], filtered_rules['confidence'],
                              c=filtered_rules['lift'], cmap='RdYlGn', alpha=0.7, s=50)
+
         plt.colorbar(scatter, ax=ax, label='Lift')
 
         plt.xlabel('Support')
