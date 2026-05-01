@@ -89,7 +89,8 @@ with st.sidebar:
              'different variables. Using association data mining and a decision tree classifier, we aim to visualize '
              'the relationships between the different variables and the possible historical reasons for said trends. '
              'The Generative Artificial Intelligence portion of the project aims to allow users to query the AI with '
-             'questions regarding the graphs created by the different techniques.')
+             'questions regarding the dataset, including comparisons between different features and which age groups '
+             'had the highest rates of vaccinations')
     st.header('Application Created By ')
     st.write('Group 2: Rachel Hussmann, Jeannine Elmasri, Sophia Milask, Anissa Serafine')
 
