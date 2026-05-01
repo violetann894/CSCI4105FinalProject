@@ -1,3 +1,5 @@
+# THE TEAM ACKNOWLEDGES THAT THIS CODE WAS WRITTEN WITH AI. WE DO NOT TAKE CREDIT FOR CREATING THIS CODE.
+
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
