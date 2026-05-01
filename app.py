@@ -276,16 +276,35 @@ with tab3:
             con_format = ', '.join(list(frozen_con))
             filtered_rules['consequents'].iloc[x] = con_format
 
-        # Refactor (also buggy)
+        # Creates the organizational columns
         column_1, column_2, column_3 = st.columns(3)
-        column_1.metric('Total Rules Found', len(filtered_rules))
-        column_2.metric('Average Confidence', f"{filtered_rules['confidence'].mean():.2f}")
-        column_3.metric('Average Lift', f"{filtered_rules['lift'].mean():.2f}")
 
-        # Refactor (also buggy)
-        st.dataframe(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']],
+        # Displays the total number of rules created
+        column_1.metric('Total Rules Found', len(filtered_rules))
+
+        # Calculates the average of the confidence values
+        average_confidence = 0.0
+        count = 0
+        for values in filtered_rules['confidence']:
+            average_confidence += values
+            count += 1
+        average_confidence = average_confidence/count
+        column_2.metric('Average Confidence', average_confidence)
+
+        # Calculates the average of the lift values
+        average_lift = 0.0
+        count = 0
+        for values in filtered_rules['lift']:
+            average_lift += values
+            count += 1
+        average_lift = average_lift/count
+        column_3.metric('Average Lift', average_lift)
+
+        # Displays the findings of the associations mining along with the metrics used to choose them
+        st.table(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']],
                      width='stretch')
 
+        # Creates a new figure to plot the rules
         fig, ax = plt.subplots(figsize=(10, 6))
 
         # Refactor (also buggy)
