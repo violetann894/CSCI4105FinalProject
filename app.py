@@ -12,13 +12,14 @@ import seaborn as sns
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
+from ai_agent_tab import render_ai_agent_tab
 
 # Creates the title for the application
 st.title('COVID-19 Data Trends Visualizer')
 
 # Creates the various tabs needed to show all the tools used for the project
-tab1, tab2, tab3, tab4 = st.tabs(['Decision Tree Model Information', 'Model Prediction', 'Association Mining Results',
-                                  'Cluster Analysis'])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(['Decision Tree Model Information', 'Model Prediction', 'Association Mining Results',
+                                  'Cluster Analysis', 'AI Agent'])
 # Imports the COVID 19 data from the .csv file
 dataframe = pd.read_csv('COVID-19_Outcomes_by_Vaccination_Status_-_Historical_20260312.csv')
 
@@ -51,14 +52,11 @@ dataframe[['Unvaccinated Rate', 'Vaccinated Rate', 'Boosted Rate']] = (
 # Creates a dictionary that holds the encoding for the ages
 age_dictionary = {'0-4': 0, '5-11': 1, '12-17': 2, '18-29': 3, '30-49': 4, '50-64': 5, '65-79': 6, '80+': 7}
 
-# Creates the reversed age dictionary in {encoded_value, key} format
-reversed_age_dictionary = {}
-for key, value in age_dictionary.items():
-    reversed_age_dictionary[value] = key
-
 # Encodes the age groups for analysis
 dataframe['Age Group Encoded'] = dataframe['Age Group'].map(age_dictionary)
-dataframe['Age Group Unencoded'] = dataframe['Age Group Encoded'].map(reversed_age_dictionary)
+
+# Used AI to assist with debugging clustering issue
+dataframe['Age Group'] = pd.Categorical(dataframe['Age Group'], categories=age_dictionary, ordered=True)
 
 # Used AI to assist with picking bins that would best fit these features
 # Creates bins to fit the data into that can then be encoded for analysis
@@ -214,7 +212,7 @@ with tab2:
 # Creates a tab for the association mining section
 with tab3:
 
-    # Describes what the tab dopes and the instructions for the user
+    # Describes what the tab does and the instructions for the user
     st.header('Association Mining')
     st.write('For this part of the project, we created an interactive tool that allows you the user to choose what '
              'threshold values you want. We utilized the Apriori algorithm for this part of the project. Please input '
@@ -268,13 +266,9 @@ with tab3:
         filtered_rules = rules[rules['lift'] >= minimum_lift].copy()
 
         # Removes the 'frozenset' from the beginning of the rules
-        for x in filtered_rules.index:
-            frozen_ant = filtered_rules['antecedents'].iloc[x]
-            ant_format = ', '.join(list(frozen_ant))
-            filtered_rules['antecendents'].iloc[x] = ant_format
-            frozen_con = filtered_rules['consequents'].iloc[x]
-            con_format = ', '.join(list(frozen_con))
-            filtered_rules['consequents'].iloc[x] = con_format
+        # Used AI to help debug the original code
+        filtered_rules['antecedents'] = filtered_rules['antecedents'].apply(lambda x: ', '.join(list(x)))
+        filtered_rules['consequents'] = filtered_rules['consequents'].apply(lambda x: ', '.join(list(x)))
 
         # Creates the organizational columns
         column_1, column_2, column_3 = st.columns(3)
@@ -289,6 +283,7 @@ with tab3:
             average_confidence += values
             count += 1
         average_confidence = average_confidence/count
+        average_confidence = "{:.2f}".format(average_confidence)
         column_2.metric('Average Confidence', average_confidence)
 
         # Calculates the average of the lift values
@@ -298,28 +293,33 @@ with tab3:
             average_lift += values
             count += 1
         average_lift = average_lift/count
+        average_lift = "{:.2f}".format(average_lift)
         column_3.metric('Average Lift', average_lift)
 
         # Displays the findings of the associations mining along with the metrics used to choose them
-        st.table(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']],
-                     width='stretch')
+        st.dataframe(filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']], width='stretch')
 
         # Creates a new figure to plot the rules
         fig, ax = plt.subplots(figsize=(10, 6))
 
-        # Refactor (also buggy)
-        scatter = ax.scatter(filtered_rules['support'], filtered_rules['confidence'],
-                             c=filtered_rules['lift'], cmap='RdYlGn', alpha=0.7, s=50)
+        # Creates a scatterplot that views the relationship between support and confidence with each point colored by
+        # lift
+        scatter = ax.scatter(filtered_rules['support'], filtered_rules['confidence'], c=filtered_rules['lift'], s=50)
 
+        # Creates the colorbar on the side of the graph that shows what the different values mean
         plt.colorbar(scatter, ax=ax, label='Lift')
 
+        # Creates the labels for the graph
         plt.xlabel('Support')
         plt.ylabel('Confidence')
         plt.title('Association Rules: Support vs Confidence (colored by Lift)')
         st.pyplot(fig)
         plt.close(fig)
 
+# Creates a tab for the k-means clustering section
 with tab4:
+
+    # Describes what the tab does and the instructions for the user
     st.header('K-Means Clustering')
     st.write('Clustering helps us understand the natural relationships between data points. In this project, we used '
              'the k-means method of clustering to answer two separate questions: Which age group had the highest '
@@ -328,85 +328,136 @@ with tab4:
              'find the best number of clusters to use based on the dataset. The graphs below displays the results of '
              'applying the elbow method.')
 
+    # Creates the labels for the first cluster plot we want to look at
     labels1 = ['Vaccinated Rate', 'Age Group Encoded']
+
+    # Gathers the data needed for the first cluster plot
     x1 = dataframe[['Vaccinated Rate', 'Age Group Encoded']]
+
+    # Uses the StandardScaler to scale the data nicely
     scaler_x1 = StandardScaler()
     scaled_x1 = scaler_x1.fit_transform(x1)
 
+    # Creates the labels for the second cluster plot we want to look at
     labels2 = ['Boosted Rate', 'Age Group Encoded']
+
+    # Gathers the data needed for the second cluster plot
     x2 = dataframe[['Boosted Rate', 'Age Group Encoded']]
+
+    # Uses the StandardScaler to scale the data nicely
     scaler_x2 = StandardScaler()
     scaled_x2 = scaler_x2.fit_transform(x2)
 
+    # Calculating the SSEs for each number of clusters to see what number would be the best for our first graph
     sse_x1 = []
     for i in range(1, 9):
         k_mean_clusters = KMeans(n_clusters=i)
         k_mean_clusters.fit(scaled_x1)
         sse_x1.append(k_mean_clusters.inertia_)
 
+    # Calculating the SSEs for each number of clusters to see what number would be the best for our second graph
     sse_x2 =[]
     for i in range(1, 9):
         k_mean_clusters = KMeans(n_clusters=i)
         k_mean_clusters.fit(scaled_x2)
         sse_x2.append(k_mean_clusters.inertia_)
 
+    # Displays the results of the elbow method completed above for the first graph
     st.subheader('Elbow Method for Vaccination Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10,6))
     plt.plot(range(1,9), sse_x1)
     ax.set_xlabel('Number of Clusters')
-    ax.set_ylabel('WCSS')
+    ax.set_ylabel('SSE')
     st.pyplot(fig)
     plt.close(fig)
 
+    # Information about what the graph shows
     st.write('In this graph, it shows that the best number of clusters to use is four, as any additional clusters '
              'would only provide a minimal increase in information.')
 
+    # Displays the results of the elbow method completed above for the second graph
     st.subheader('Elbow Method for Boosted Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10, 6))
     plt.plot(range(1, 9), sse_x2)
     ax.set_xlabel('Number of Clusters')
-    ax.set_ylabel('WCSS')
+    ax.set_ylabel('SSE')
     st.pyplot(fig)
     plt.close(fig)
 
+    # Information about what the graph shows
     st.write('In this graph, it shows that the best number of clusters to use is four, as any additional clusters '
              'would only provide a minimal increase in information. After the k-means clusters have been created, we '
              'want to visualize the data to see how much overlap occurs between the clusters. This will help us to '
              'better understand how separate the clusters are and if there are any gray areas where characteristics '
              'of two clusters may overlap.')
 
+    # Creating a k-means cluster using 4 clusters and finding the centroids after the clusters have been made
     k = 4
     km_x1 = KMeans(n_clusters=k, random_state=42)
     dataframe['Clusters_x1'] = km_x1.fit_predict(scaled_x1)
     centroids_x1 = km_x1.cluster_centers_
 
+    # Creating the graph for the first cluster graph
     st.subheader('Scatterplot Cluster Graph - Vaccinated Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.scatter(dataframe['Age Group Unencoded'], dataframe['Vaccinated Rate'], c=dataframe['Clusters_x1'])
+
+    # Used AI to debug why the graph was not appearing correctly, below line was fix
+    ax.scatter(dataframe['Age Group'].cat.codes, dataframe['Vaccinated Rate'], c=dataframe['Clusters_x1'])
+
+    # Creating the labels for the graph and displaying the graph to the user
     ax.set_xlabel('Age Group')
     ax.set_ylabel('Vaccinated Rate')
     st.pyplot(fig)
     plt.close(fig)
 
+    st.write('The above graph shows us the different clusters, which gives us an idea about how the different age '
+             'group got vaccinated. It appears that that the cluster that got the most booster shots is the green and yellow '
+             'cluster. The green cluster represents all of the older age groups getting vaccinated, which based on the '
+             'information we know about the COVID outbreak, was the first age group that could get vaccinated. The '
+             'yellow cluster represents all of the younger age groups, which could not get the vaccine until much later '
+             'in the pandemic. Overall it shows that many saw the vaccine as a tool to help prevent infection.')
+
+    # Creating a k-means cluster using 4 clusters and finding the centroids after the clusters have been made
     k = 4
     km_x2 = KMeans(n_clusters=k, random_state=42)
     dataframe['Clusters_x2'] = km_x2.fit_predict(scaled_x2)
     centroids_x2 = km_x2.cluster_centers_
 
+    # Creating the graph for the second cluster graph
     st.subheader('Scatterplot Cluster Graph - Boosted Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.scatter(dataframe['Age Group Unencoded'], dataframe['Boosted Rate'], c=dataframe['Clusters_x2'])
+
+    # Used AI to debug why the graph was not appearing correctly, below line was fix
+    ax.scatter(dataframe['Age Group'].cat.codes, dataframe['Boosted Rate'], c=dataframe['Clusters_x2'])
+
+    # Creating the labels for the graph and displaying the graph to the user
     ax.set_xlabel('Age Group')
     ax.set_ylabel('Boosted Rate')
     st.pyplot(fig)
     plt.close(fig)
 
+    # Information about the graph
+    st.write('The above graph shows us the different clusters, which gives us an idea about how the different age '
+             'group got booster shots. It appears that that the cluster that got the most booster shots is the green '
+             'cluster. This cluster appears to be a mixture of all ages, but the main thing they have in common is the '
+             'high rate of boosted statuses.')
+
+    # Displaying a table of information about the centroid for each cluster - first graph
     st.subheader('Cluster Profiles - Vaccination Status and Age Group')
     st.write('The table below shows data from the centroids of each cluster:')
     st.table(pd.DataFrame(centroids_x1, columns=labels1, index=['Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4']))
 
+    # Displaying a table of information about the centroid for each cluster - second graph
     st.subheader('Cluster Profiles - Boosted Status and Age Group')
     st.write('The table below shows data from the centroids of each cluster:')
     st.table(pd.DataFrame(centroids_x2, columns=labels2, index=['Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4']))
 
-    st.write('')
+    # Description about the graphs
+    st.write('These graphs tell us similar information about the clusters but in a different format. By looking at the '
+             'centroids, we get a more centralized comparison t')
+
+# Creates the tab for the AI agent
+with tab5:
+
+    # Calls the code created by claude to have the gemini agent talk with the user
+    render_ai_agent_tab()
