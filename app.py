@@ -442,20 +442,6 @@ with tab4:
              'cluster. This cluster appears to be a mixture of all ages, but the main thing they have in common is the '
              'high rate of boosted statuses.')
 
-    # Displaying a table of information about the centroid for each cluster - first graph
-    st.subheader('Cluster Profiles - Vaccination Status and Age Group')
-    st.write('The table below shows data from the centroids of each cluster:')
-    st.table(pd.DataFrame(centroids_x1, columns=labels1, index=['Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4']))
-
-    # Displaying a table of information about the centroid for each cluster - second graph
-    st.subheader('Cluster Profiles - Boosted Status and Age Group')
-    st.write('The table below shows data from the centroids of each cluster:')
-    st.table(pd.DataFrame(centroids_x2, columns=labels2, index=['Cluster 1', 'Cluster 2', 'Cluster 3', 'Cluster 4']))
-
-    # Description about the graphs
-    st.write('These graphs tell us similar information about the clusters but in a different format. By looking at the '
-             'centroids, we get a more centralized comparison t')
-
 # Creates the tab for the AI agent
 with tab5:
 
