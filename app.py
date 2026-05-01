@@ -402,7 +402,7 @@ with tab4:
     st.subheader('Scatterplot Cluster Graph - Vaccinated Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Used AI to debug why the graph was not appearing correctly, below line was fix
+    # Used AI to debug why the graph was not appearing correctly, dataframe['Age Group'].cat.codes was the fix
     ax.scatter(dataframe['Age Group'].cat.codes, dataframe['Vaccinated Rate'], c=dataframe['Clusters_x1'])
 
     # Creating the labels for the graph and displaying the graph to the user
@@ -428,7 +428,7 @@ with tab4:
     st.subheader('Scatterplot Cluster Graph - Boosted Rate and Age Group')
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Used AI to debug why the graph was not appearing correctly, below line was fix (same prompt as the previous one)
+    # Used AI to debug why the graph was not appearing correctly, dataframe['Age Group'].cat.codes was the fix
     ax.scatter(dataframe['Age Group'].cat.codes, dataframe['Boosted Rate'], c=dataframe['Clusters_x2'])
 
     # Creating the labels for the graph and displaying the graph to the user
